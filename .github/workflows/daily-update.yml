@@ -1,0 +1,41 @@
+name: Daily Token Unlock Data Update
+
+on:
+  schedule:
+    # 每天 UTC 2:00（北京时间 10:00）运行
+    - cron: '0 2 * * *'
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install dependencies
+        run: |
+          cd functions
+          npm install
+      
+      - name: Run data update
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          cd functions
+          echo "$FIREBASE_SERVICE_ACCOUNT" > service-account.json
+          node src/updateData.js
+      
+      - name: Commit updated data (if any changes)
+        run: |
+          git config --local user.email "bot@unlockalert.app"
+          git config --local user.name "UnlockAlert Bot"
+          git add functions/src/fallbackData.json
+          git diff --quiet && git diff --staged --quiet || git commit -m "🔄 Daily unlock data update $(date +'%Y-%m-%d')"
+          git push
