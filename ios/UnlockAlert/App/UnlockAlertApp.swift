@@ -1,34 +1,11 @@
 import SwiftUI
-import FirebaseCore
 
-/// App 入口
-class AppDelegate: NSObject, UIApplicationDelegate {
-    func application(_ application: UIApplication,
-                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-        FirebaseApp.configure()
-        
-        // 注册远程推送
-        UNUserNotificationCenter.current().delegate = NotificationService.shared
-        
-        return true
-    }
-    
-    func application(_ application: UIApplication,
-                     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        // Firebase 会自动注册 FCM Token
-        print("📱 已获取推送Token")
-    }
-    
-    func application(_ application: UIApplication,
-                     didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        print("❌ 推送注册失败: \(error.localizedDescription)")
-    }
-}
-
+/// App 入口 - 零后端版本
+/// 数据从 GitHub raw JSON 读取，无需 Firebase
 @main
 struct UnlockAlertApp: App {
-    @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @State private var selectedTab = 0
+    @StateObject private var dataService = TokenDataService.shared
     
     var body: some Scene {
         WindowGroup {
@@ -52,11 +29,11 @@ struct UnlockAlertApp: App {
                     .tag(2)
             }
             .tint(.blue)
-            .onAppear {
-                // 启动时请求通知权限
-                Task {
-                    _ = await NotificationService.shared.requestPermission()
-                }
+            .task {
+                // 启动时加载数据
+                await dataService.loadTokens()
+                // 请求通知权限
+                _ = await NotificationService.shared.requestPermission()
             }
         }
     }

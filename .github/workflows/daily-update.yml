@@ -1,4 +1,4 @@
-name: Daily Token Unlock Data Update
+name: Daily Token Data Update
 
 on:
   schedule:
@@ -7,35 +7,82 @@ on:
   workflow_dispatch:  # 允许手动触发
 
 jobs:
-  update-data:
+  update-token-data:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
       
-      - name: Install dependencies
+      - name: Update token prices and unlock data
         run: |
-          cd functions
-          npm install
+          # 获取最新价格数据并更新 data/tokens.json
+          node -e "
+          const fs = require('fs');
+          const https = require('https');
+          
+          const dataPath = 'data/tokens.json';
+          let tokens = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+          
+          // 获取 CoinGecko 最新价格
+          const ids = tokens.map(t => t.symbol.toLowerCase()).join(',');
+          const url = 'https://api.coingecko.com/api/v3/simple/price?ids=' + 
+            tokens.map(t => {
+              const map = {
+                'arb': 'arbitrum', 'apt': 'aptos', 'sui': 'sui',
+                'wld': 'worldcoin', 'ena': 'ethena', 'op': 'optimism',
+                'dydx': 'dydx', 'sei': 'sei-network', 'zk': 'zksync',
+                'w': 'wormhole', 'tia': 'celestia', 'imx': 'immutable-x',
+                'strk': 'starknet'
+              };
+              return map[t.symbol.toLowerCase()] || t.name.toLowerCase();
+            }).join(',') + '&vs_currencies=usd';
+          
+          https.get(url, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+              try {
+                const prices = JSON.parse(data);
+                const idMap = {
+                  'arbitrum': 'ARB', 'aptos': 'APT', 'sui': 'SUI',
+                  'worldcoin': 'WLD', 'ethena': 'ENA', 'optimism': 'OP',
+                  'dydx': 'DYDX', 'sei-network': 'SEI', 'zksync': 'ZK',
+                  'wormhole': 'W', 'celestia': 'TIA',
+                  'immutable-x': 'IMX', 'starknet': 'STRK'
+                };
+                
+                for (const [apiId, symbol] of Object.entries(idMap)) {
+                  if (prices[apiId] && prices[apiId].usd) {
+                    const token = tokens.find(t => t.symbol === symbol);
+                    if (token) {
+                      token.currentPrice = prices[apiId].usd;
+                    }
+                  }
+                }
+                
+                fs.writeFileSync(dataPath, JSON.stringify(tokens, null, 2));
+                console.log('✅ 价格数据更新完成');
+              } catch(e) {
+                console.log('价格更新跳过:', e.message);
+              }
+            });
+          }).on('error', (e) => {
+            console.log('API请求失败，保留原数据:', e.message);
+          });
+          "
       
-      - name: Run data update
-        env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: |
-          cd functions
-          echo "$FIREBASE_SERVICE_ACCOUNT" > service-account.json
-          node src/updateData.js
-      
-      - name: Commit updated data (if any changes)
+      - name: Commit and push updated data
         run: |
           git config --local user.email "bot@unlockalert.app"
           git config --local user.name "UnlockAlert Bot"
-          git add functions/src/fallbackData.json
-          git diff --quiet && git diff --staged --quiet || git commit -m "🔄 Daily unlock data update $(date +'%Y-%m-%d')"
-          git push
+          git add data/tokens.json
+          git diff --quiet && git diff --staged --quiet || \
+            (git commit -m "🔄 Auto-update token data $(date +'%Y-%m-%d')" && git push)
