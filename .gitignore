@@ -1,0 +1,44 @@
+# Xcode
+*.xcworkspace
+*.xcuserstate
+DerivedData/
+build/
+*.app
+
+# iOS
+Pods/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Firebase
+functions/service-account.json
+**/GoogleService-Info.plist
+.firebaserc
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+**/secrets/**
+*.p12
+*.p8
+*.key

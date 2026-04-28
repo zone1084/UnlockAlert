@@ -1,0 +1,21 @@
+{
+  "name": "unlock-alert-functions",
+  "version": "1.0.0",
+  "description": "Firebase Cloud Functions for Unlock Alert - fetches token unlock data and sends notifications",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "deploy": "firebase deploy --only functions",
+    "test": "node src/test.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0",
+    "firebase-functions": "^5.0.0",
+    "axios": "^1.7.0",
+    "node-cron": "^3.0.3"
+  },
+  "engines": {
+    "node": "18"
+  },
+  "private": true
+}
